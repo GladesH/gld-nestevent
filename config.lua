@@ -76,7 +76,7 @@ Config.NestEvent = {
 
     -- Messages et notifications
     messages = {
-        start = "Un nid de ravageurs est apparu ! Survivez pendant 5 minutes !",
+        start = "Le sol tremble ... Un nid de ravageurs est apparu !",
         timeWarning = "Plus que %d minutes !",
         success = "Vous avez survécu à l'attaque !",
         failed = "L'événement a échoué...",
