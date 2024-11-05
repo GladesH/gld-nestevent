@@ -69,7 +69,7 @@ Config.NestEvent = {
         },
         
         progressCircle = {
-            position = 'top-middle',
+            position = 'bottom',
             label = 'SURVIE'
         }
     },
