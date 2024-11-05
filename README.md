@@ -17,7 +17,7 @@ A dynamic zombie nest event system for HRS_Zombies_V2/QBCore.
 - QBCore
 - PolyZone
 - ox_lib
-- hrs_zombies_V2
+- hrs_zombies_V2 -> https://hrs-scripts.tebex.io/
 
 ## Installation
 
