@@ -96,6 +96,7 @@ local function SpawnRewardBox(coords)
         DeleteEntity(rewardBox) 
     end
     
+    
     rewardBox = CreateObject(GetHashKey('prop_mil_crate_01'), coords.x, coords.y, coords.z, true, false, false)
     PlaceObjectOnGroundProperly_2(rewardBox)
     FreezeEntityPosition(rewardBox, true)
@@ -132,8 +133,54 @@ local function SpawnRewardBox(coords)
         0.0, 0.0, 0.0, 
         1.0, false, false, false, false
     )
+    
 end
 
+RegisterNetEvent('nest-event:destroyNest')
+AddEventHandler('nest-event:destroyNest', function(coords)
+    -- Créer une explosion de type molotov
+    AddExplosion(
+        coords.x, coords.y, coords.z,
+        3, -- Type EXPLOSION_MOLOTOV
+        10.0, -- Dégâts
+        true, -- isAudible
+        false, -- isInvisible
+        2.0 -- Rayon de l'explosion
+    )
+    
+    -- Créer plusieurs petites explosions pour un meilleur effet
+    CreateThread(function()
+        local iterations = 5
+        for i = 1, iterations do
+            Wait(500) -- Attendre 500ms entre chaque explosion
+            
+            -- Créer des explosions légèrement décalées autour du point central
+            local offsetX = math.random(-2, 2)
+            local offsetY = math.random(-2, 2)
+            
+            AddExplosion(
+                coords.x + offsetX,
+                coords.y + offsetY,
+                coords.z,
+                3, -- Type EXPLOSION_MOLOTOV
+                0.5, -- Dégâts réduits pour les explosions secondaires
+                true,
+                false,
+                1.0
+            )
+        end
+    end)
+
+     lib.requestNamedPtfxAsset('core')
+        UseParticleFxAssetNextCall('core')
+        StartParticleFxLoopedAtCoord(
+        'ent_sht_petrol_fire',
+        coords.x, coords.y, coords.z - 1.0,
+        0.0, 0.0, 0.0,
+        3.0, -- Échelle
+        false, false, false, false
+    )
+end)
 -- Début de l'événement
 RegisterNetEvent('nest-event:start')
 AddEventHandler('nest-event:start', function(data)
@@ -273,4 +320,14 @@ CreateThread(function()
             UpdateEventUI()
         end
     end
+end)
+
+-- Native route pour le spawn des nest 
+RegisterNetEvent('nest-event:checkRoadLocation')
+AddEventHandler('nest-event:checkRoadLocation', function(coords)
+    local streetHash = GetStreetNameAtCoord(coords.x, coords.y, coords.z)
+    local isOnRoad = GetVehicleNodeProperties(coords.x, coords.y, coords.z)
+    local hasRoadAccess = isOnRoad and IsPointOnRoad(coords.x, coords.y, coords.z, 0)
+    
+    TriggerServerEvent('nest-event:roadCheckResult', coords, hasRoadAccess)
 end)
