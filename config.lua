@@ -69,14 +69,14 @@ Config.NestEvent = {
         },
         
         progressCircle = {
-            position = 'bottom',
-            label = 'SURVIE'
+            position = 'top-middle',
+            label = 'SURVIE PENDANT 5 MIN'
         }
     },
 
     -- Messages et notifications
     messages = {
-        start = "Le sol tremble ... Un nid de ravageurs est apparu !",
+        start = "Un nid de ravageurs est apparu ! Survivez pendant 5 minutes !",
         timeWarning = "Plus que %d minutes !",
         success = "Vous avez survécu à l'attaque !",
         failed = "L'événement a échoué...",
