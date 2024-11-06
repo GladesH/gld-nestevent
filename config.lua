@@ -2,10 +2,11 @@ Config = {}
 
 Config.NestEvent = {
     -- Paramètres de base
-    nestType = 'horde_nest',  -- Type de nest de hrs_zombies_V2
-    Debug = true,            -- Mode debug
+    nestType = 'horde_nest',  
+    Debug = false,            
+    language = 'fr',         -- 'fr' pour Français, 'en' pour Anglais
 
-    -- Timing des événements
+    -- Paramètres de timing
     timing = {
         dayChance = 20,          -- Chance d'apparition le jour (%)
         nightChance = 30,        -- Chance d'apparition la nuit (%)
@@ -17,47 +18,41 @@ Config.NestEvent = {
     -- Paramètres de zone
     area = {
         radius = 50.0,          -- Rayon de la zone de survie
-        minSpawnDistance = 15.0, -- Distance minimum du joueur
-        maxSpawnDistance = 35.0 -- Distance maximum du joueur
+        minSpawnDistance = 20.0, -- Distance minimum du joueur
+        maxSpawnDistance = 100.0 -- Distance maximum du joueur
     },
 
     -- Système de récompenses
     rewards = {
-        -- Récompenses monétaires
         money = {
-            base = 0,        -- Récompense de base
-            perKill = 0,      -- Par kill
-            survival = 0      -- Bonus de survie
+            base = 1000,        -- Récompense de base
+            perKill = 100,      -- Par kill
+            timeBonus = {
+                requiredTime = 180,   -- Temps requis en secondes (3 minutes)
+                multiplier = 1.5      -- Multiplicateur de récompense (×1.5 = +50%)
+            }
         },
         
-        -- Récompenses items
         items = {
-            -- Items standards (plus grande chance)
             standard = {
-                {name = 'bandage', chance = 70, amount = {min = 4, max = 6}},
-                {name = 'old_money', chance = 100, amount = {min = 500, max = 5899}},
-                {name = 'plastic', chance = 70, amount = {min = 2, max = 8}},
-                {name = 'battery', chance = 50, amount = {min = 1, max = 3}},
-                {name = 'copper', chance = 70, amount = {min = 1, max = 6}},
+                {name = 'bandage', chance = 70, amount = {min = 1, max = 3}},
                 -- Ajoutez d'autres items standards ici
             },
             
-            -- Items rares (plus faible chance)
             rare = {
                 {
-                    name = 'inhibiteur1',
+                    name = 'inhibiteur',
                     chance = 25,
                     amount = 1,
-                    requireKills = 5  -- Minimum kills requis
+                    requireKills = 5
                 }
                 -- Ajoutez d'autres items rares ici
             }
         },
         
-        -- Conditions pour les récompenses
         conditions = {
             minTimeInZone = 60,    -- Temps minimum dans la zone (secondes)
-            minKills = 1,          -- Kills minimum
+            minKills = 1,          -- Kills minimum pour items rares
             perfectSurvival = true  -- Bonus si jamais sorti de la zone
         }
     },
@@ -65,42 +60,215 @@ Config.NestEvent = {
     -- Interface utilisateur
     ui = {
         notifications = {
-            title = 'Nid de Ravageur',
+            title = {
+                fr = 'ÉVÉNEMENT NEST',
+                en = 'NEST EVENT'
+            },
             style = {
                 backgroundColor = '#1c1c1c',
                 color = '#ffffff'
             }
         },
     },   
+
     -- Messages et notifications
     messages = {
-        start = "Un nid de ravageurs est apparu ! Survivez pendant 5 minutes !",
-        timeWarning = "Plus que %d minutes !",
-        success = "Vous avez survécu à l'attaque !",
-        failed = "C'est trop tard , les Ravageur on pris le dessus",
-        reward = {
-            success = "Récompenses récupérées !",
-            noAccess = {
-                lowKills = "Pas assez de kills pour la récompense",
-                lowTime = "Temps de participation insuffisant",
-                notParticipated = "Vous n'avez pas participé"
+        -- Messages de base
+        timeLeftTitle = {
+            fr = "TEMPS DE SURVIE",
+            en = "SURVIVAL TIME"
+        },
+        kills = {
+            fr = "Kills",
+            en = "Kills"
+        },
+        zone = {
+            fr = "Zone",
+            en = "Zone"
+        },
+        timeInZone = {
+            fr = "Temps bonnus",
+            en = "bonnus time"
+        },
+        timeBonusReached = {
+            fr = "Bonus de temps débloqué ! (+50% de récompenses)",
+            en = "Time bonus unlocked! (+50% rewards)"
+        },
+
+        -- Messages d'événement
+        start = {
+            fr = "Un nid de ravageurs est apparu ! Survivez pendant 5 minutes !",
+            en = "A ravager nest has appeared! Survive for 5 minutes!"
+        },
+        timeWarning = {
+            fr = "Plus que %d minutes !",
+            en = "%d minutes remaining!"
+        },
+        success = {
+            fr = "Vous avez survécu à l'attaque !",
+            en = "You survived the attack!"
+        },
+        failed = {
+            fr = "L'événement a échoué...",
+            en = "Event failed..."
+        },
+        zoneWarning = {
+            fr = "Vous vous éloignez trop du nid !",
+            en = "You're getting too far from the nest!"
+        },
+        zoneSecure = {
+            fr = "Zone sécurisée",
+            en = "Secure zone"
+        },
+        minTimeReached = {
+            fr = "Temps minimum de participation atteint !",
+            en = "Minimum participation time reached!"
+        },
+
+        -- Messages de kill
+        kill = {
+            title = {
+                fr = "Elimination",
+                en = "Kill"
+            },
+            confirmed = {
+                fr = "Elimination confirmée",
+                en = "Kill confirmed"
             }
         },
-        zoneWarning = "Vous vous éloignez trop du nid !"
-    }
 
-    -- Modif de spawn des Nest
-    
+        -- Messages de récompense
+        reward = {
+            title = {
+                fr = "Récompense",
+                en = "Reward"
+            },
+            claimReward = {
+                fr = "Récupérer les récompenses",
+                en = "Claim rewards"
+            },
+            moneyReceived = {
+                fr = "Vous avez reçu $%d",
+                en = "You received $%d"
+            },
+            timeBonus = {
+                fr = "Bonus de temps appliqué !",
+                en = "Time bonus applied!"
+            },
+            itemReceived = {
+                fr = "Objet reçu",
+                en = "Item received"
+            },
+            inventoryFull = {
+                fr = "Inventaire plein !",
+                en = "Inventory full!"
+            },
+            noAccess = {
+                lowKills = {
+                    fr = "Pas assez de kills pour la récompense",
+                    en = "Not enough kills for the reward"
+                },
+                lowTime = {
+                    fr = "Temps de participation insuffisant",
+                    en = "Insufficient participation time"
+                },
+                notParticipated = {
+                    fr = "Vous n'avez pas participé",
+                    en = "You did not participate"
+                }
+            }
+        },
+
+        -- Messages d'erreur
+        error = {
+            fr = "Erreur",
+            en = "Error"
+        },
+
+        -- Messages admin
+        admin = {
+            eventStarted = {
+                fr = "Événement démarré",
+                en = "Event started"
+            },
+            eventStartedFor = {
+                fr = "Événement démarré pour %s",
+                en = "Event started for %s"
+            },
+            playerNotFound = {
+                fr = "Joueur non trouvé",
+                en = "Player not found"
+            },
+            eventCleaned = {
+                fr = "Événement nettoyé",
+                en = "Event cleaned"
+            },
+            noActiveEvent = {
+                fr = "Aucun événement en cours",
+                en = "No active event"
+            },
+            systemEnabled = {
+                fr = "Système de Nest Events activé",
+                en = "Nest Events system enabled"
+            },
+            systemDisabled = {
+                fr = "Système de Nest Events désactivé",
+                en = "Nest Events system disabled"
+            }
+        },
+
+        -- Messages de stats
+        stats = {
+            title = {
+                fr = "Statistiques de l'événement",
+                en = "Event Statistics"
+            },
+            total = {
+                fr = "Total des événements: %d\nKills totaux: %d\nArgent distribué: $%d",
+                en = "Total events: %d\nTotal kills: %d\nMoney given: $%d"
+            },
+            records = {
+                fr = "Record de kills: %d\nMeilleur bonus temps: $%d",
+                en = "Kill record: %d\nBest time bonus: $%d"
+            }
+        }
+    }
 }
 
+-- Fonction helper pour obtenir le texte traduit
+function Config.NestEvent.GetText(path, ...)
+    local lang = Config.NestEvent.language
+    local keys = {}
+    for key in string.gmatch(path, "([^.]+)") do
+        table.insert(keys, key)
+    end
+    
+    local current = Config.NestEvent
+    for _, key in ipairs(keys) do
+        if current[key] then
+            current = current[key]
+        else
+            print("^1[NEST-EVENT] Missing text key: " .. path .. "^7")
+            return "MISSING_TEXT: " .. path
+        end
+    end
+    
+    if type(current) == "table" then
+        if current[lang] then
+            return string.format(current[lang], ...)
+        else
+            print("^1[NEST-EVENT] Missing translation for " .. lang .. ": " .. path .. "^7")
+            return "MISSING_TRANSLATION: " .. path
+        end
+    end
+    
+    return "INVALID_PATH: " .. path
+end
+
+-- Configuration des préférences de spawn
 Config.NestEvent.spawnPreferences = {
     preferRoads = true,
-
+    maxSpawnAttempts = 20,
+    roadCheckRadius = 3.0,
+    minRoadWidth = 5.0
 }
-Config.NestEvent.spawnCheck = {
-    maxHeight = 0.5,            -- Différence maximale de hauteur acceptable
-    checkRadius = 2.0,          -- Rayon de vérification autour du point de spawn
-    minGroundDistance = 0.5,    -- Distance minimale du sol
-    maxGroundDistance = 1.0     -- Distance maximale du sol
-} 
--- cette configue d'après pita sur cfx.re peut améliorer le spawn mais j'ai pas trop vue la diff 
