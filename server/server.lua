@@ -11,7 +11,7 @@ end)
 local systemEnabled = true
 local activeEvent = nil
 local eventTimer = nil
-local eventParticipants = {} -- Nouvelle variable pour stocker les participants
+local eventParticipants = {}
 
 -- Debug
 local function Debug(message)
@@ -25,7 +25,6 @@ local function EndNestEvent(success)
     if not activeEvent then return end
     Debug("Tentative de fin d'événement")
 
-    -- Notifier tous les clients
     TriggerClientEvent('nest-event:end', -1, {
         success = success,
         stats = {
@@ -34,7 +33,6 @@ local function EndNestEvent(success)
         }
     })
 
-    -- Reset des variables
     if eventTimer then
         clearTimeout(eventTimer)
         eventTimer = nil
@@ -42,7 +40,6 @@ local function EndNestEvent(success)
     
     Debug("Événement terminé avec succès")
     activeEvent = nil
-    -- Ne pas réinitialiser eventParticipants ici pour permettre la réclamation des récompenses
 end
 
 -- Sélection d'un joueur aléatoire
@@ -59,20 +56,38 @@ local function GetRandomPlayer()
     return #validPlayers > 0 and validPlayers[math.random(#validPlayers)] or nil
 end
 
+-- Fonction pour vérifier si une position est sur une route
+local function IsLocationOnRoad(coords)
+    -- On va demander au client de faire la vérification
+    TriggerClientEvent('nest-event:checkRoadLocation', -1, coords)
+    -- Note: idéalement il faudrait attendre la réponse du client ici
+    return true -- Par défaut on autorise et on laissera le client faire la vérification finale
+end
+
 -- Vérifier si l'emplacement est valide
 local function IsValidSpawnLocation(coords)
+    -- Vérifier la distance avec les joueurs d'abord
     local players = QBCore.Functions.GetQBPlayers()
     for _, player in pairs(players) do
         local ped = GetPlayerPed(player.PlayerData.source)
         if ped then
             local playerCoords = GetEntityCoords(ped)
-            local distance = #(coords - playerCoords)
+            local distance = #(vector3(coords.x, coords.y, 0) - vector3(playerCoords.x, playerCoords.y, 0))
             if distance < Config.NestEvent.area.minSpawnDistance then
-                return false
+                Debug("Point rejeté: trop proche d'un joueur")
+                return false, 0
             end
         end
     end
-    return true
+
+    -- Vérifier si on est sur une route
+    if IsLocationOnRoad(coords) then
+        Debug("Point validé: sur une route")
+        return true, coords.z + 0.5
+    end
+
+    Debug("Point rejeté: pas sur une route")
+    return false, 0
 end
 
 -- Démarrer l'événement
@@ -89,10 +104,13 @@ local function StartNestEvent(targetPlayer)
     end
 
     local playerCoords = GetEntityCoords(GetPlayerPed(selectedPlayer.PlayerData.source))
+    Debug("Coordonnées du joueur: " .. json.encode(playerCoords))
+
     local spawnCoords = nil
     local attempts = 0
+    local maxAttempts = Config.NestEvent.spawnPreferences and Config.NestEvent.spawnPreferences.maxSpawnAttempts or 20
 
-    while attempts < 10 and not spawnCoords do
+    while attempts < maxAttempts and not spawnCoords do
         local angle = math.random() * 2 * math.pi
         local distance = math.random(
             Config.NestEvent.area.minSpawnDistance,
@@ -105,18 +123,22 @@ local function StartNestEvent(targetPlayer)
             playerCoords.z
         )
 
-        if IsValidSpawnLocation(testCoords) then
-            spawnCoords = testCoords
+        local valid, groundZ = IsValidSpawnLocation(testCoords)
+        if valid then
+            spawnCoords = vector3(testCoords.x, testCoords.y, groundZ)
+            Debug("Point de spawn valide trouvé: " .. json.encode(spawnCoords))
         end
+        
         attempts = attempts + 1
+        Debug("Tentative " .. attempts .. " sur " .. maxAttempts)
     end
 
     if not spawnCoords then 
-        Debug("Impossible de trouver un point de spawn valide")
+        Debug("Impossible de trouver un point de spawn valide après " .. maxAttempts .. " tentatives")
         return 
     end
 
-    -- Réinitialiser les participants pour le nouvel événement
+    -- Réinitialiser les participants
     eventParticipants = {}
 
     -- Créer l'événement
@@ -271,6 +293,12 @@ AddEventHandler('nest-event:claimReward', function()
     -- Retirer le joueur des participants éligibles après une réclamation réussie
     eventParticipants[source] = nil
     Debug("Distribution des récompenses terminée pour le joueur " .. source)
+end)
+
+-- Écouter la réponse du client pour la vérification de route
+RegisterNetEvent('nest-event:roadCheckResult')
+AddEventHandler('nest-event:roadCheckResult', function(coords, isValid)
+    Debug("Résultat de vérification de route reçu: " .. tostring(isValid) .. " pour coords " .. json.encode(coords))
 end)
 
 -- Thread principal
