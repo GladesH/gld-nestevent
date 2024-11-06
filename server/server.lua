@@ -209,6 +209,13 @@ AddEventHandler('nest-event:claimReward', function()
         return 
     end
     
+     -- Vérifier si le joueur a participé à l'événement
+     if not activeEvent or not activeEvent.participants or not activeEvent.participants[source] then
+        Debug("Joueur " .. source .. " n'a pas participé à l'événement")
+        TriggerClientEvent('nest-event:rewardError', source, 'notParticipated')
+        return
+    end
+    
     -- Vérifier les kills
     local kills = activeEvent and activeEvent.kills and activeEvent.kills[source] or 0
     Debug("Kills du joueur " .. source .. ": " .. kills)
