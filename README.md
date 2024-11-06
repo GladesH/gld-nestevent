@@ -43,7 +43,7 @@ All settings can be found in `config.lua`:
 - `/nestinfo` - Get current event info
 
 ## Add NestType in config HRS zombie
-' ['horde_nest'] = {
+'['horde_nest'] = {
         propModel = `prop_pile_dirt_06`,
         pedsType = 'military',
         zChange = -1.0,
@@ -62,7 +62,7 @@ All settings can be found in `config.lua`:
         regenTime = 120, --- seconds
         maxZombies = 70,
         ptfx = true
-    }, '
+    },'
 
 ## Support
 
