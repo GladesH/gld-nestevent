@@ -7,7 +7,7 @@ local rewardBox = nil
 local isInZone = false
 local eventStartTime = 0
 local timeInZone = 0
-local killCount = 0  -- Ajout d'un compteur local de kills
+local killCount = 0
 
 -- Debug
 local function Debug(message)
@@ -43,9 +43,9 @@ end
 
 function onEnterZone()
     isInZone = true
-    
+    Debug("Entrée dans la zone, envoi du statut au serveur")
+    TriggerServerEvent('nest-event:updatePlayerZoneStatus', true)
 end
-
 
 -- Création de la zone
 local function CreateEventZone(coords)
@@ -106,11 +106,10 @@ local function SpawnRewardBox(coords)
             label = 'Récupérer les récompenses',
             icon = 'fas fa-box',
             canInteract = function()
-                -- Vérifier si le joueur a participé à l'événement
-                return isInZone or timeInZone > 0
+                return timeInZone > 0 -- Vérifie si le joueur a passé du temps dans la zone
             end,
             onSelect = function()
-                if not isInZone and timeInZone == 0 then
+                if timeInZone == 0 then
                     lib.notify({
                         title = Config.NestEvent.ui.notifications.title,
                         description = Config.NestEvent.messages.reward.noAccess.notParticipated,
@@ -133,7 +132,6 @@ local function SpawnRewardBox(coords)
         0.0, 0.0, 0.0, 
         1.0, false, false, false, false
     )
-    
 end
 
 -- Début de l'événement
@@ -150,14 +148,17 @@ AddEventHandler('nest-event:start', function(data)
     
     CreateEventZone(data.coords)
     
+    -- Vérifier si le joueur est déjà dans la zone au début
+    if eventZone and eventZone:isPointInside(GetEntityCoords(PlayerPedId())) then
+        onEnterZone()
+    end
+    
     lib.notify({
         title = Config.NestEvent.ui.notifications.title,
         description = Config.NestEvent.messages.start,
         type = 'inform',
         duration = 7500
     })
-
-
 end)
 
 -- Mise à jour des kills
@@ -210,7 +211,7 @@ AddEventHandler('nest-event:end', function(data)
     lib.hideTextUI()
     activeEvent = nil
     isInZone = false
-    killCount = 0
+    -- Ne pas réinitialiser timeInZone ici pour permettre la réclamation des récompenses
 end)
 
 -- Récompenses réclamées
@@ -247,7 +248,7 @@ AddEventHandler('nest-event:rewardError', function(errorType)
     })
 end)
 
--- Thread principal
+-- Thread principal pour le compteur de temps dans la zone
 CreateThread(function()
     while true do
         Wait(1000)
