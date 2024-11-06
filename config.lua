@@ -68,12 +68,6 @@ Config.NestEvent = {
             }
         },
         
-        progressCircle = {
-            position = 'top-middle',
-            label = 'SURVIE PENDANT 5 MIN'
-        }
-    },
-
     -- Messages et notifications
     messages = {
         start = "Un nid de ravageurs est apparu ! Survivez pendant 5 minutes !",
