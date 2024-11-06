@@ -67,7 +67,7 @@ Config.NestEvent = {
                 color = '#ffffff'
             }
         },
-        
+    },   
     -- Messages et notifications
     messages = {
         start = "Un nid de ravageurs est apparu ! Survivez pendant 5 minutes !",
