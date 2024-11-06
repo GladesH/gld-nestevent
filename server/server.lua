@@ -19,15 +19,12 @@ local function Debug(message)
     end
 end
 
--- Fonction de fin d'événement
+-- Fonction de fin d'événement (doit être déclarée avant utilisation)
 local function EndNestEvent(success)
     if not activeEvent then return end
     Debug("Tentative de fin d'événement")
 
-    -- Supprimer le nest
-    TriggerEvent('hrs_zombies:removeNest', activeEvent.id)
-
-    -- Notifier les clients
+    -- Notifier tous les clients
     TriggerClientEvent('nest-event:end', -1, {
         success = success,
         stats = {
@@ -42,7 +39,12 @@ local function EndNestEvent(success)
         eventTimer = nil
     end
     
-    Debug("Événement terminé")
+    -- Nettoyer le nest si possible
+    if activeEvent.id then
+        TriggerEvent('hrs_zombies:removeNest', activeEvent.id)
+    end
+
+    Debug("Événement terminé avec succès")
     activeEvent = nil
 end
 
@@ -152,15 +154,21 @@ end
 RegisterNetEvent('nest-event:registerKill')
 AddEventHandler('nest-event:registerKill', function()
     local source = source
-    if not activeEvent then return end
+    Debug("Tentative d'enregistrement de kill par: " .. source)
+
+    if not activeEvent then 
+        Debug("Pas d'événement actif")
+        return 
+    end
     
     if not activeEvent.kills then
         activeEvent.kills = {}
     end
     
     activeEvent.kills[source] = (activeEvent.kills[source] or 0) + 1
-    Debug(string.format("Kill enregistré pour %s, total: %d", source, activeEvent.kills[source]))
-    
+    Debug("Kill enregistré - Joueur: " .. source .. " - Total kills: " .. activeEvent.kills[source])
+
+    -- Mettre à jour tous les clients
     TriggerClientEvent('nest-event:updateKills', -1, activeEvent.kills)
 end)
 
@@ -169,6 +177,10 @@ RegisterNetEvent('nest-event:updatePlayerZoneStatus')
 AddEventHandler('nest-event:updatePlayerZoneStatus', function(isInZone)
     local source = source
     if not activeEvent then return end
+    
+    if not activeEvent.participants then
+        activeEvent.participants = {}
+    end
     
     if isInZone then
         if not activeEvent.participants[source] then
@@ -189,8 +201,9 @@ end)
 RegisterNetEvent('nest-event:claimReward')
 AddEventHandler('nest-event:claimReward', function()
     local source = source
-    local player = QBCore.Functions.GetPlayer(source)
+    Debug("Tentative de réclamation de récompense par: " .. source)
     
+    local player = QBCore.Functions.GetPlayer(source)
     if not player then 
         Debug("Joueur non trouvé")
         return 
@@ -198,41 +211,51 @@ AddEventHandler('nest-event:claimReward', function()
     
     -- Vérifier les kills
     local kills = activeEvent and activeEvent.kills and activeEvent.kills[source] or 0
-    Debug(string.format("Joueur %s a %d kills", source, kills))
+    Debug("Kills du joueur " .. source .. ": " .. kills)
     
-    -- Calculer la récompense
-    local moneyReward = Config.NestEvent.rewards.money.base + (kills * Config.NestEvent.rewards.money.perKill)
+    -- Récompense de base
+    local moneyReward = Config.NestEvent.rewards.money.base
+    
+    -- Bonus par kill
+    moneyReward = moneyReward + (kills * Config.NestEvent.rewards.money.perKill)
     
     -- Donner l'argent
     player.Functions.AddMoney('cash', moneyReward, 'nest-event-reward')
+    Debug("Argent donné: $" .. moneyReward)
     
-    -- Ajouter les items selon les kills
-    if kills >= Config.NestEvent.rewards.conditions.minKills then
-        for _, item in ipairs(Config.NestEvent.rewards.items.standard) do
-            if math.random(100) <= item.chance then
-                local amount = math.random(item.amount.min, item.amount.max)
-                player.Functions.AddItem(item.name, amount)
-                TriggerClientEvent('inventory:client:ItemBox', source, QBCore.Shared.Items[item.name], 'add', amount)
-            end
-        end
-        
-        -- Items rares
-        for _, item in ipairs(Config.NestEvent.rewards.items.rare) do
-            if kills >= (item.requireKills or 0) and math.random(100) <= item.chance then
-                player.Functions.AddItem(item.name, item.amount)
-                TriggerClientEvent('inventory:client:ItemBox', source, QBCore.Shared.Items[item.name], 'add', item.amount)
+    -- Items de récompense
+    local givenItems = {}
+    
+    -- Items standards
+    for _, item in ipairs(Config.NestEvent.rewards.items.standard) do
+        if math.random(100) <= item.chance then
+            local amount = math.random(item.amount.min, item.amount.max)
+            if player.Functions.AddItem(item.name, amount) then
+                table.insert(givenItems, {name = item.name, amount = amount})
+                Debug("Item donné: " .. item.name .. " x" .. amount)
             end
         end
     end
     
-    -- Notifier le joueur
-    TriggerClientEvent('ox_lib:notify', source, {
-        title = 'Récompense',
-        description = string.format('Vous avez reçu $%d pour %d kills', moneyReward, kills),
-        type = 'success'
-    })
+    -- Items rares (si assez de kills)
+    if kills >= Config.NestEvent.rewards.conditions.minKills then
+        for _, item in ipairs(Config.NestEvent.rewards.items.rare) do
+            if math.random(100) <= item.chance then
+                if player.Functions.AddItem(item.name, item.amount) then
+                    table.insert(givenItems, {name = item.name, amount = item.amount})
+                    Debug("Item rare donné: " .. item.name .. " x" .. item.amount)
+                end
+            end
+        end
+    end
     
-    Debug(string.format("Récompense donnée: $%d pour %d kills", moneyReward, kills))
+    -- Notifier le client
+    TriggerClientEvent('nest-event:rewardClaimed', source, {
+        money = moneyReward,
+        items = givenItems
+    })
+
+    Debug("Distribution des récompenses terminée pour le joueur " .. source)
 end)
 
 -- Thread principal
