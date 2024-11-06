@@ -25,7 +25,7 @@ local function UpdateEventUI()
     
     local timeLeft = math.max(0, Config.NestEvent.timing.duration * 60 - (GetGameTimer() - eventStartTime) / 1000)
     local text = string.format(
-        "ÉVÉNEMENT NEST : \n %02d:%02d\nKills: %d\nZone: %s",
+        "TEMPS DE SURVIE : \n %02d:%02d\n | Kills: %d | \nZone: %s",
         math.floor(timeLeft / 60),
         math.floor(timeLeft % 60),
         killCount,
@@ -40,6 +40,12 @@ local function UpdateEventUI()
         }
     })
 end
+
+function onEnterZone()
+    isInZone = true
+    
+end
+
 
 -- Création de la zone
 local function CreateEventZone(coords)
@@ -62,22 +68,24 @@ local function CreateEventZone(coords)
 
     eventZone:onPlayerInOut(function(isPointInside, point)
         Debug("Changement de statut de zone: " .. tostring(isPointInside))
-        isInZone = isPointInside
-        TriggerServerEvent('nest-event:updatePlayerZoneStatus', isPointInside)
         
         if isPointInside then
+            onEnterZone()
             lib.notify({
                 title = Config.NestEvent.ui.notifications.title,
                 description = 'Zone sécurisée',
                 type = 'success'
             })
         else
+            isInZone = false
             lib.notify({
                 title = Config.NestEvent.ui.notifications.title,
                 description = Config.NestEvent.messages.zoneWarning,
                 type = 'error'
             })
         end
+        
+        TriggerServerEvent('nest-event:updatePlayerZoneStatus', isPointInside)
         UpdateEventUI()
     end)
 end
@@ -88,14 +96,9 @@ local function SpawnRewardBox(coords)
         DeleteEntity(rewardBox) 
     end
     
-    local groundZ = coords.z
-    local found, safeZ = GetGroundZFor_3dCoord(coords.x, coords.y, coords.z + 10.0, true)
-    if found then groundZ = safeZ end
-    
-    rewardBox = CreateObject(GetHashKey('prop_mil_crate_01'), coords.x, coords.y, groundZ, true, false, false)
-    PlaceObjectOnGroundProperly(rewardBox)
+    rewardBox = CreateObject(GetHashKey('prop_mil_crate_01'), coords.x, coords.y, coords.z, true, false, false)
+    PlaceObjectOnGroundProperly_2(rewardBox)
     FreezeEntityPosition(rewardBox, true)
-    SetEntityHeading(rewardBox, math.random(360))
     
     exports.ox_target:addLocalEntity(rewardBox, {
         {
@@ -106,23 +109,22 @@ local function SpawnRewardBox(coords)
                 return true
             end,
             onSelect = function()
-                if activeEvent then
-                    TriggerServerEvent('nest-event:claimReward')
-                    DeleteEntity(rewardBox)
-                    rewardBox = nil
-                end
+                TriggerServerEvent('nest-event:claimReward')
+                DeleteEntity(rewardBox)
+                rewardBox = nil
             end
         }
     })
 
-    -- Effet visuel
+    -- Effet visuel pour le spawn
     lib.requestNamedPtfxAsset('core')
     UseParticleFxAssetNextCall('core')
     StartParticleFxLoopedAtCoord('ent_ray_heli_aprtmnt_l_fire', 
-        coords.x, coords.y, groundZ,
+        coords.x, coords.y, coords.z,
         0.0, 0.0, 0.0, 
         1.0, false, false, false, false
     )
+    
 end
 
 -- Début de l'événement
@@ -145,21 +147,8 @@ AddEventHandler('nest-event:start', function(data)
         type = 'inform',
         duration = 7500
     })
-    
-    -- Progress circle
-    lib.progressCircle({
-        duration = Config.NestEvent.timing.duration * 60 * 1000,
-        position = Config.NestEvent.ui.progressCircle.position,
-        label = Config.NestEvent.ui.progressCircle.label,
-        useWhileDead = false,
-        canCancel = false,
-        disable = {
-            move = false,
-            car = false,
-            combat = false,
-            mouse = false
-        }
-    })
+
+
 end)
 
 -- Mise à jour des kills
@@ -262,6 +251,16 @@ CreateThread(function()
                     type = 'success'
                 })
             end
+        end
+    end
+end)
+
+-- Thread séparé pour l'UI
+CreateThread(function()
+    while true do
+        Wait(1000)
+        if activeEvent then
+            UpdateEventUI()
         end
     end
 end)
