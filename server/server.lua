@@ -11,6 +11,7 @@ end)
 local systemEnabled = true
 local activeEvent = nil
 local eventTimer = nil
+local eventParticipants = {} -- Nouvelle variable pour stocker les participants
 
 -- Debug
 local function Debug(message)
@@ -19,7 +20,7 @@ local function Debug(message)
     end
 end
 
--- Fonction de fin d'événement (doit être déclarée avant utilisation)
+-- Fonction de fin d'événement
 local function EndNestEvent(success)
     if not activeEvent then return end
     Debug("Tentative de fin d'événement")
@@ -39,13 +40,9 @@ local function EndNestEvent(success)
         eventTimer = nil
     end
     
-    -- Nettoyer le nest si possible
-    if activeEvent.id then
-        TriggerEvent('hrs_zombies:removeNest', activeEvent.id)
-    end
-
     Debug("Événement terminé avec succès")
     activeEvent = nil
+    -- Ne pas réinitialiser eventParticipants ici pour permettre la réclamation des récompenses
 end
 
 -- Sélection d'un joueur aléatoire
@@ -119,6 +116,9 @@ local function StartNestEvent(targetPlayer)
         return 
     end
 
+    -- Réinitialiser les participants pour le nouvel événement
+    eventParticipants = {}
+
     -- Créer l'événement
     activeEvent = {
         id = "nest_" .. os.time(),
@@ -176,23 +176,28 @@ end)
 RegisterNetEvent('nest-event:updatePlayerZoneStatus')
 AddEventHandler('nest-event:updatePlayerZoneStatus', function(isInZone)
     local source = source
-    if not activeEvent then return end
+    Debug("Mise à jour du statut de zone pour le joueur " .. source .. ": " .. tostring(isInZone))
+    
+    if not activeEvent then 
+        Debug("Pas d'événement actif")
+        return 
+    end
     
     if not activeEvent.participants then
         activeEvent.participants = {}
     end
     
     if isInZone then
+        eventParticipants[source] = true
+        Debug("Joueur " .. source .. " ajouté aux participants éligibles")
+        
         if not activeEvent.participants[source] then
             activeEvent.participants[source] = {
                 timeInZone = 0,
-                joinTime = os.time()
+                joinTime = os.time(),
+                hasParticipated = true
             }
-            Debug("Joueur " .. source .. " entré dans la zone")
-        end
-    else
-        if activeEvent.participants[source] then
-            Debug("Joueur " .. source .. " sorti de la zone")
+            Debug("Joueur " .. source .. " enregistré comme participant")
         end
     end
 end)
@@ -209,21 +214,22 @@ AddEventHandler('nest-event:claimReward', function()
         return 
     end
     
-     -- Vérifier si le joueur a participé à l'événement
-     if not activeEvent or not activeEvent.participants or not activeEvent.participants[source] then
+    -- Débug détaillé de la vérification de participation
+    Debug("Vérification de participation pour le joueur " .. source)
+    Debug("Statut de participation: " .. tostring(eventParticipants[source]))
+    
+    -- Vérifier si le joueur a participé
+    if not eventParticipants[source] then
         Debug("Joueur " .. source .. " n'a pas participé à l'événement")
         TriggerClientEvent('nest-event:rewardError', source, 'notParticipated')
         return
     end
     
-    -- Vérifier les kills
     local kills = activeEvent and activeEvent.kills and activeEvent.kills[source] or 0
     Debug("Kills du joueur " .. source .. ": " .. kills)
     
     -- Récompense de base
     local moneyReward = Config.NestEvent.rewards.money.base
-    
-    -- Bonus par kill
     moneyReward = moneyReward + (kills * Config.NestEvent.rewards.money.perKill)
     
     -- Donner l'argent
@@ -262,6 +268,8 @@ AddEventHandler('nest-event:claimReward', function()
         items = givenItems
     })
 
+    -- Retirer le joueur des participants éligibles après une réclamation réussie
+    eventParticipants[source] = nil
     Debug("Distribution des récompenses terminée pour le joueur " .. source)
 end)
 
