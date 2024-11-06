@@ -42,6 +42,28 @@ All settings can be found in `config.lua`:
 - `/togglenest` - Enable/disable the system
 - `/nestinfo` - Get current event info
 
+## Add NestType in config HRS zombie
+' ['horde_nest'] = {
+        propModel = `prop_pile_dirt_06`,
+        pedsType = 'military',
+        zChange = -1.0,
+        damageRadius = 0.0,
+        damagePed = 15,
+        drawDistance = 120.0, ---- recommended value
+        blip = {
+            label = "Horde",
+            color = 1,
+            alpha = 128,
+            scale = 1.0,
+            sprite = 378,
+            shortRange = true  
+        }, -- false will disable it
+        maxHealth = 10.00,
+        regenTime = 120, --- seconds
+        maxZombies = 70,
+        ptfx = true
+    }, '
+
 ## Support
 
 For support or questions: fabgros.
