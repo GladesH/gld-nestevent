@@ -106,9 +106,18 @@ local function SpawnRewardBox(coords)
             label = 'Récupérer les récompenses',
             icon = 'fas fa-box',
             canInteract = function()
-                return true
+                -- Vérifier si le joueur a participé à l'événement
+                return isInZone or timeInZone > 0
             end,
             onSelect = function()
+                if not isInZone and timeInZone == 0 then
+                    lib.notify({
+                        title = Config.NestEvent.ui.notifications.title,
+                        description = Config.NestEvent.messages.reward.noAccess.notParticipated,
+                        type = 'error'
+                    })
+                    return
+                end
                 TriggerServerEvent('nest-event:claimReward')
                 DeleteEntity(rewardBox)
                 rewardBox = nil
