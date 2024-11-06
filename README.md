@@ -41,8 +41,8 @@ All settings can be found in `config.lua`:
 - `/clearnest` - Clear current event
 - `/togglenest` - Enable/disable the system
 - `/nestinfo` - Get current event info
-
-## Add NestType in config HRS zombie
+>[!WARNING]
+>## Add NestType in config HRS zombie
 ```
 ['horde_nest'] = {
         propModel = `prop_pile_dirt_06`,
@@ -73,3 +73,6 @@ For support or questions: fabgros.
 ## License
 
 This resource is protected under copyright law.
+
+> [!NOTE]
+> This is my first Lua script, so here I am, offering you this little bundle! It’s not perfect, there are still some inconsistencies ... but the main goal is to have fun. I’ll be updating the script regularly to improve it, setting myself a small challenge and immersing myself in the world of Lua development!
