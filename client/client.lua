@@ -10,11 +10,10 @@ local timeInZone = 0
 local killCount = 0
 local particleEffects = {}
 local hasParticipated = false
-local bonusTimeReached = false
 
--- Debug
+-- Debug sécurisé
 local function Debug(message)
-    if Config.NestEvent.Debug then
+    if Config and Config.NestEvent and Config.NestEvent.Debug then
         print('^3[NEST-EVENT] ^7' .. message)
     end
 end
