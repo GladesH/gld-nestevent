@@ -3,7 +3,7 @@
 A dynamic zombie nest event system for HRS_Zombies_V2/QBCore.
 
 > [!IMPORTANT]
-> This bundle works with version 2.0 of HRS zombie, check if it is up to date, otherwise some exports may not work
+> This bundle works with version 2.0 (2024-10-24) of HRS zombie, check if it is up to date, otherwise some exports may not work
 
 
 ## Features
