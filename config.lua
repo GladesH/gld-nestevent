@@ -18,8 +18,8 @@ Config.NestEvent = {
     -- Paramètres de zone
     area = {
         radius = 50.0,          
-        minSpawnDistance = 20.0, 
-        maxSpawnDistance = 100.0 
+        minSpawnDistance = 10.0, 
+        maxSpawnDistance = 25.0 
     },
 
     -- Système de récompenses
