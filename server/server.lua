@@ -1,5 +1,13 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 
+-- Vérification que Config existe
+if not Config then
+    Config = {}
+    Config.NestEvent = {
+        Debug = true  -- Debug par défaut si config non chargée
+    }
+end
+
 -- Message de démarrage
 CreateThread(function()
     Wait(2000)
@@ -12,16 +20,11 @@ local systemEnabled = true
 local activeEvent = nil
 local eventTimer = nil
 local eventParticipants = {}
-local eventStats = {
-    totalEvents = 0,
-    totalKills = 0,
-    bestKills = 0,
-    bestKiller = nil
-}
+local eventStats = {}
 
--- Debug
+-- Debug avec vérification de Config
 local function Debug(message, level)
-    if Config.NestEvent.Debug then
+    if Config and Config.NestEvent and Config.NestEvent.Debug then
         level = level or 'info'
         local colors = {
             info = '^3',
@@ -36,28 +39,34 @@ end
 -- Fonctions de gestion des stats en JSON
 local function LoadStats()
     local file = LoadResourceFile(GetCurrentResourceName(), "stats.json")
+    local defaultStats = {
+        totalEvents = 0,
+        totalKills = 0,
+        bestKills = 0,
+        bestKiller = nil,
+        totalMoneyGiven = 0,
+        bestTimeBonus = 0,
+        rewardHistory = {}
+    }
+
     if file then
         local decoded = json.decode(file)
         if decoded then
+            -- Fusionner avec les valeurs par défaut pour s'assurer que tous les champs existent
+            for k, v in pairs(defaultStats) do
+                if decoded[k] == nil then
+                    decoded[k] = v
+                end
+            end
             eventStats = decoded
             Debug("Stats chargées depuis stats.json", "success")
         else
             Debug("Erreur de décodage des stats, initialisation par défaut", "warning")
-            eventStats = {
-                totalEvents = 0,
-                totalKills = 0,
-                bestKills = 0,
-                bestKiller = nil
-            }
+            eventStats = defaultStats
         end
     else
         Debug("Aucun fichier de stats trouvé, initialisation par défaut", "info")
-        eventStats = {
-            totalEvents = 0,
-            totalKills = 0,
-            bestKills = 0,
-            bestKiller = nil
-        }
+        eventStats = defaultStats
     end
 end
 
@@ -71,7 +80,54 @@ local function SaveStats()
     end
 end
 
--- Fonction de fin d'événement
+-- Calcul des récompenses
+-- Calcul des récompenses
+local function CalculateRewards(source, kills, timeInZone)
+    local baseReward = Config.NestEvent.rewards.money.base
+    local killReward = kills * Config.NestEvent.rewards.money.perKill
+    local timeBonus = 0
+    local totalReward = baseReward + killReward
+
+    Debug(string.format("Calcul des récompenses pour le joueur %s:", source))
+    Debug(string.format("- Récompense de base: $%d", baseReward))
+    Debug(string.format("- Bonus de kills: $%d (%d kills × $%d)", 
+        killReward, kills, Config.NestEvent.rewards.money.perKill))
+
+    -- Appliquer le bonus de temps
+    if timeInZone >= Config.NestEvent.rewards.money.timeBonus.requiredTime then
+        timeBonus = totalReward * (Config.NestEvent.rewards.money.timeBonus.multiplier - 1)
+        totalReward = totalReward * Config.NestEvent.rewards.money.timeBonus.multiplier
+        Debug(string.format("- Bonus de temps appliqué: +$%d (×%.1f)", 
+            timeBonus, Config.NestEvent.rewards.money.timeBonus.multiplier))
+    end
+
+    -- S'assurer que les champs existent
+    if not eventStats.rewardHistory then eventStats.rewardHistory = {} end
+    if not eventStats.totalMoneyGiven then eventStats.totalMoneyGiven = 0 end
+    if not eventStats.bestTimeBonus then eventStats.bestTimeBonus = 0 end
+
+    -- Enregistrer dans l'historique
+    table.insert(eventStats.rewardHistory, {
+        timestamp = os.time(),
+        player = source,
+        baseReward = baseReward,
+        killReward = killReward,
+        timeBonus = timeBonus,
+        totalReward = totalReward,
+        kills = kills,
+        timeInZone = timeInZone,
+        hadTimeBonus = timeBonus > 0
+    })
+
+    eventStats.totalMoneyGiven = eventStats.totalMoneyGiven + totalReward
+    if timeBonus > eventStats.bestTimeBonus then
+        eventStats.bestTimeBonus = timeBonus
+    end
+
+    SaveStats()
+    return totalReward, timeBonus > 0
+end
+
 local function EndNestEvent(success)
     if not activeEvent then return end
     Debug("Tentative de fin d'événement")
@@ -80,19 +136,25 @@ local function EndNestEvent(success)
     local totalEventKills = 0
     local bestPlayerKills = 0
     local bestPlayer = nil
+    
+    -- Sauvegarder les kills dans notre variable globale
+    lastEventKills = activeEvent.kills or {}
+    Debug("Sauvegarde des kills: " .. json.encode(lastEventKills))
 
-    for source, kills in pairs(activeEvent.kills or {}) do
+    for source, kills in pairs(lastEventKills) do
         totalEventKills = totalEventKills + kills
         if kills > bestPlayerKills then
             bestPlayerKills = kills
             bestPlayer = source
         end
+        Debug("Joueur " .. source .. ": " .. kills .. " kills")
     end
 
     -- Mise à jour des stats globales
-    eventStats.totalEvents = eventStats.totalEvents + 1
-    eventStats.totalKills = eventStats.totalKills + totalEventKills
-    if bestPlayerKills > eventStats.bestKills then
+    eventStats.totalEvents = (eventStats.totalEvents or 0) + 1
+    eventStats.totalKills = (eventStats.totalKills or 0) + totalEventKills
+    
+    if bestPlayerKills > (eventStats.bestKills or 0) then
         eventStats.bestKills = bestPlayerKills
         eventStats.bestKiller = bestPlayer
         
@@ -101,17 +163,17 @@ local function EndNestEvent(success)
                 Config.NestEvent.GetText('messages.newRecord', bestPlayerKills),
                 'success'
             )
+            Debug("Nouveau record établi par " .. bestPlayer .. ": " .. bestPlayerKills .. " kills")
         end
     end
 
-    -- Sauvegarder les stats
     SaveStats()
 
     -- Notifier tous les clients
     TriggerClientEvent('nest-event:end', -1, {
         success = success,
         stats = {
-            totalKills = activeEvent.kills or {},
+            totalKills = lastEventKills,
             participants = activeEvent.participants or {},
             eventStats = {
                 totalKills = totalEventKills,
@@ -121,12 +183,19 @@ local function EndNestEvent(success)
         }
     })
 
+    -- Nettoyer les timers
     if eventTimer then
         clearTimeout(eventTimer)
         eventTimer = nil
     end
     
-    Debug("Événement terminé avec succès")
+    Debug(string.format("Événement terminé - Total Kills: %d, Meilleur joueur: %s avec %d kills", 
+        totalEventKills, 
+        bestPlayer and tostring(bestPlayer) or "aucun", 
+        bestPlayerKills
+    ))
+    
+    -- Ne pas effacer lastEventKills pour permettre la réclamation des récompenses
     activeEvent = nil
 end
 
@@ -144,7 +213,7 @@ local function GetRandomPlayer()
     return #validPlayers > 0 and validPlayers[math.random(#validPlayers)] or nil
 end
 
--- Vérifier si l'emplacement est valide
+-- Vérification de l'emplacement
 local function IsValidSpawnLocation(coords)
     local players = QBCore.Functions.GetQBPlayers()
     for _, player in pairs(players) do
@@ -160,7 +229,6 @@ local function IsValidSpawnLocation(coords)
     end
     return true, coords.z + 0.5
 end
-
 -- Démarrer l'événement
 local function StartNestEvent(targetPlayer)
     if activeEvent or not systemEnabled then 
@@ -201,6 +269,7 @@ local function StartNestEvent(targetPlayer)
         end
         
         attempts = attempts + 1
+        Debug("Tentative " .. attempts .. " sur " .. maxAttempts)
     end
 
     if not spawnCoords then 
@@ -261,13 +330,15 @@ local function StartNestEvent(targetPlayer)
     end)
 
     Debug("Événement démarré: " .. activeEvent.id, "success")
+    SaveStats() -- Sauvegarder les stats après le début de l'événement
     return true
 end
+
 -- Enregistrement des kills
 RegisterNetEvent('nest-event:registerKill')
 AddEventHandler('nest-event:registerKill', function()
     local source = source
-    Debug("Tentative d'enregistrement de kill par: " .. source, "info")
+    Debug("Tentative d'enregistrement de kill par: " .. source)
 
     if not activeEvent then 
         Debug("Pas d'événement actif", "warning")
@@ -279,7 +350,7 @@ AddEventHandler('nest-event:registerKill', function()
     end
     
     activeEvent.kills[source] = (activeEvent.kills[source] or 0) + 1
-    Debug("Kill enregistré - Joueur: " .. source .. " - Total kills: " .. activeEvent.kills[source], "success")
+    Debug("Kill enregistré - Joueur: " .. source .. " - Total kills: " .. activeEvent.kills[source])
 
     -- Mettre à jour tous les clients
     TriggerClientEvent('nest-event:updateKills', -1, activeEvent.kills)
@@ -289,7 +360,7 @@ end)
 RegisterNetEvent('nest-event:updatePlayerZoneStatus')
 AddEventHandler('nest-event:updatePlayerZoneStatus', function(isInZone)
     local source = source
-    Debug("Mise à jour du statut de zone pour le joueur " .. source .. ": " .. tostring(isInZone), "info")
+    Debug("Mise à jour du statut de zone pour le joueur " .. source .. ": " .. tostring(isInZone))
     
     if not activeEvent then 
         Debug("Pas d'événement actif", "warning")
@@ -302,7 +373,7 @@ AddEventHandler('nest-event:updatePlayerZoneStatus', function(isInZone)
     
     if isInZone then
         eventParticipants[source] = true
-        Debug("Joueur " .. source .. " ajouté aux participants éligibles", "success")
+        Debug("Joueur " .. source .. " ajouté aux participants éligibles")
         
         if not activeEvent.participants[source] then
             activeEvent.participants[source] = {
@@ -310,16 +381,17 @@ AddEventHandler('nest-event:updatePlayerZoneStatus', function(isInZone)
                 joinTime = os.time(),
                 hasParticipated = true
             }
-            Debug("Joueur " .. source .. " enregistré comme participant", "success")
+            Debug("Joueur " .. source .. " enregistré comme participant")
         end
     end
 end)
 
 -- Distribution des récompenses
+-- Distribution des récompenses
 RegisterNetEvent('nest-event:claimReward')
-AddEventHandler('nest-event:claimReward', function()
+AddEventHandler('nest-event:claimReward', function(clientTimeInZone)
     local source = source
-    Debug("Tentative de réclamation de récompense par: " .. source, "info")
+    Debug("Tentative de réclamation de récompense par: " .. source)
     
     local player = QBCore.Functions.GetPlayer(source)
     if not player then 
@@ -334,22 +406,17 @@ AddEventHandler('nest-event:claimReward', function()
         return
     end
 
-    local kills = activeEvent and activeEvent.kills and activeEvent.kills[source] or 0
-    Debug("Kills du joueur " .. source .. ": " .. kills, "info")
+    -- Utiliser les kills sauvegardés
+    local kills = lastEventKills[source] or 0
+    Debug("Kills pour le joueur " .. source .. ": " .. kills)
 
-    -- Calcul des récompenses
-    local moneyReward = Config.NestEvent.rewards.money.base
-    moneyReward = moneyReward + (kills * Config.NestEvent.rewards.money.perKill)
+    -- Calcul des récompenses avec bonus
+    local totalReward, hadTimeBonus = CalculateRewards(source, kills, clientTimeInZone)
+    Debug("Récompense calculée: $" .. totalReward .. " (avec " .. kills .. " kills)")
     
-    -- Bonus de performance
-    if kills >= Config.NestEvent.rewards.conditions.minKills * 2 then
-        moneyReward = moneyReward * 1.5
-        Debug("Bonus de performance appliqué", "success")
-    end
-
     -- Donner l'argent
-    player.Functions.AddMoney('cash', moneyReward, 'nest-event-reward')
-    Debug("Argent donné: $" .. moneyReward, "success")
+    player.Functions.AddMoney('cash', totalReward, 'nest-event-reward')
+    Debug("Argent donné: $" .. totalReward)
     
     -- Items de récompense
     local givenItems = {}
@@ -360,7 +427,7 @@ AddEventHandler('nest-event:claimReward', function()
             local amount = math.random(item.amount.min, item.amount.max)
             if player.Functions.AddItem(item.name, amount) then
                 table.insert(givenItems, {name = item.name, amount = amount})
-                Debug("Item donné: " .. item.name .. " x" .. amount, "success")
+                Debug("Item donné: " .. item.name .. " x" .. amount)
             else
                 TriggerClientEvent('QBCore:Notify', source, 
                     Config.NestEvent.GetText('messages.reward.inventoryFull'),
@@ -371,13 +438,13 @@ AddEventHandler('nest-event:claimReward', function()
         end
     end
     
-    -- Items rares
+    -- Items rares (si assez de kills)
     if kills >= Config.NestEvent.rewards.conditions.minKills then
         for _, item in ipairs(Config.NestEvent.rewards.items.rare) do
             if math.random(100) <= item.chance then
                 if player.Functions.AddItem(item.name, item.amount) then
                     table.insert(givenItems, {name = item.name, amount = item.amount})
-                    Debug("Item rare donné: " .. item.name .. " x" .. item.amount, "success")
+                    Debug("Item rare donné: " .. item.name .. " x" .. item.amount)
                 end
             end
         end
@@ -385,13 +452,22 @@ AddEventHandler('nest-event:claimReward', function()
     
     -- Notifier le client
     TriggerClientEvent('nest-event:rewardClaimed', source, {
-        money = moneyReward,
-        items = givenItems
+        money = totalReward,
+        items = givenItems,
+        timeBonus = hadTimeBonus,
+        stats = {
+            kills = kills,
+            wasTopKiller = kills == eventStats.bestKills
+        }
     })
 
     -- Retirer le joueur des participants éligibles
     eventParticipants[source] = nil
-    Debug("Distribution des récompenses terminée pour le joueur " .. source, "success")
+    Debug("Distribution des récompenses terminée pour le joueur " .. source)
+    
+    -- Sauvegarder les stats
+    eventStats.totalMoneyGiven = (eventStats.totalMoneyGiven or 0) + totalReward
+    SaveStats()
 end)
 
 -- Thread principal avec vérification automatique
@@ -415,7 +491,7 @@ CreateThread(function()
             
             local adjustedChance = chance + (playerCount * 2)
             Debug(string.format("Chance d'événement: %d%% (Base: %d%%, Bonus joueurs: %d%%)", 
-                adjustedChance, chance, playerCount * 2), "info")
+                adjustedChance, chance, playerCount * 2))
 
             if math.random(100) <= adjustedChance then
                 StartNestEvent()
@@ -453,35 +529,6 @@ QBCore.Commands.Add('clearnest', 'Nettoie l\'événement en cours (Admin)', {}, 
     end
 end)
 
-QBCore.Commands.Add('nestinfo', 'Info sur l\'événement en cours (Admin)', {}, true, function(source)
-    if QBCore.Functions.HasPermission(source, 'admin') then
-        if activeEvent then
-            local participantCount = 0
-            local totalKills = 0
-            
-            for _ in pairs(activeEvent.participants) do
-                participantCount = participantCount + 1
-            end
-            
-            for _, kills in pairs(activeEvent.kills) do
-                totalKills = totalKills + kills
-            end
-            
-            local timeRemaining = Config.NestEvent.timing.duration * 60 - (os.time() - activeEvent.startTime)
-            
-            TriggerClientEvent('QBCore:Notify', source, string.format(
-                Config.NestEvent.GetText('messages.admin.eventInfo'),
-                participantCount, totalKills, timeRemaining
-            ))
-        else
-            TriggerClientEvent('QBCore:Notify', source, 
-                Config.NestEvent.GetText('messages.admin.noActiveEvent'),
-                'error'
-            )
-        end
-    end
-end)
-
 QBCore.Commands.Add('togglenest', 'Active/Désactive le système de nest events (Admin)', {}, true, function(source)
     if QBCore.Functions.HasPermission(source, 'admin') then
         systemEnabled = not systemEnabled
@@ -499,22 +546,24 @@ QBCore.Commands.Add('togglenest', 'Active/Désactive le système de nest events 
             systemEnabled and "activé" or "désactivé",
             GetPlayerName(source)
         ))
-        
-        SaveStats()
     end
 end)
 
 -- Nettoyage à l'arrêt de la ressource
 AddEventHandler('onResourceStop', function(resourceName)
-    if (GetCurrentResourceName() ~= resourceName) then
-        return
-    end
-    
-    Debug("Arrêt du système d'événements", "warning")
+    if GetCurrentResourceName() ~= resourceName then return end
     
     if activeEvent then
         EndNestEvent(false)
     end
     
     SaveStats()
+end)
+
+-- Vérification des routes
+RegisterNetEvent('nest-event:roadCheckResult')
+AddEventHandler('nest-event:roadCheckResult', function(coords, isValid)
+    Debug(string.format("Résultat vérification route: %s pour coords %s", 
+        tostring(isValid), 
+        json.encode(coords)))
 end)
