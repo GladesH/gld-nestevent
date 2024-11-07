@@ -3,40 +3,40 @@ Config = {}
 Config.NestEvent = {
     -- Paramètres de base
     nestType = 'horde_nest',  
-    Debug = false,            
-    language = 'fr',         -- 'fr' pour Français, 'en' pour Anglais
+    Debug = false,            -- Mis à true pour le debugging
+    language = 'en',         -- 'fr' pour Français, 'en' pour Anglais
 
     -- Paramètres de timing
     timing = {
-        dayChance = 20,          -- Chance d'apparition le jour (%)
-        nightChance = 30,        -- Chance d'apparition la nuit (%)
-        checkInterval = 15,      -- Minutes entre chaque check
-        duration = 5,            -- Durée de l'événement en minutes
-        warningTimes = {3, 1}    -- Minutes restantes pour les notifications
+        dayChance = 20,          
+        nightChance = 30,        
+        checkInterval = 15,      
+        duration = 5,            
+        warningTimes = {3, 1}    
     },
 
     -- Paramètres de zone
     area = {
-        radius = 50.0,          -- Rayon de la zone de survie
-        minSpawnDistance = 20.0, -- Distance minimum du joueur
-        maxSpawnDistance = 100.0 -- Distance maximum du joueur
+        radius = 50.0,          
+        minSpawnDistance = 20.0, 
+        maxSpawnDistance = 100.0 
     },
 
     -- Système de récompenses
     rewards = {
         money = {
-            base = 1000,        -- Récompense de base
-            perKill = 100,      -- Par kill
+            base = 1000,        
+            perKill = 100,      
+            survival = 500,
             timeBonus = {
-                requiredTime = 180,   -- Temps requis en secondes (3 minutes)
-                multiplier = 1.5      -- Multiplicateur de récompense (×1.5 = +50%)
+                requiredTime = 180,   -- 3 minutes
+                multiplier = 1.5
             }
         },
         
         items = {
             standard = {
                 {name = 'bandage', chance = 70, amount = {min = 1, max = 3}},
-                -- Ajoutez d'autres items standards ici
             },
             
             rare = {
@@ -46,14 +46,13 @@ Config.NestEvent = {
                     amount = 1,
                     requireKills = 5
                 }
-                -- Ajoutez d'autres items rares ici
             }
         },
         
         conditions = {
-            minTimeInZone = 60,    -- Temps minimum dans la zone (secondes)
-            minKills = 1,          -- Kills minimum pour items rares
-            perfectSurvival = true  -- Bonus si jamais sorti de la zone
+            minTimeInZone = 60,    -- 1 minute
+            minKills = 1,          
+            perfectSurvival = true  
         }
     },
 
@@ -87,12 +86,16 @@ Config.NestEvent = {
             en = "Zone"
         },
         timeInZone = {
-            fr = "Temps bonnus",
-            en = "bonnus time"
+            fr = "Temps en zone",
+            en = "Time in zone"
+        },
+        seconds = {
+            fr = "secondes",
+            en = "seconds"
         },
         timeBonusReached = {
-            fr = "Bonus de temps débloqué ! (+50% de récompenses)",
-            en = "Time bonus unlocked! (+50% rewards)"
+            fr = "Bonus de temps débloqué !",
+            en = "Time bonus unlocked!"
         },
 
         -- Messages d'événement
@@ -124,6 +127,18 @@ Config.NestEvent = {
             fr = "Temps minimum de participation atteint !",
             en = "Minimum participation time reached!"
         },
+        killConditionMet = {
+            fr = "Condition de kills atteinte !",
+            en = "Kill condition met!"
+        },
+        newRecord = {
+            fr = "Nouveau record ! %d kills !",
+            en = "New record! %d kills!"
+        },
+        timeBonus = {
+            fr = "Bonus de temps ! (+50% de récompenses)",
+            en = "Time bonus! (+50% rewards)"
+        },
 
         -- Messages de kill
         kill = {
@@ -148,7 +163,7 @@ Config.NestEvent = {
                 en = "Claim rewards"
             },
             moneyReceived = {
-                fr = "Vous avez reçu $%d",
+                fr = "Vous avez reçu %d$",
                 en = "You received $%d"
             },
             timeBonus = {
@@ -162,6 +177,10 @@ Config.NestEvent = {
             inventoryFull = {
                 fr = "Inventaire plein !",
                 en = "Inventory full!"
+            },
+            timeBonus = {
+                fr = "Bonus de temps appliqué !",
+                en = "Time bonus applied!"
             },
             noAccess = {
                 lowKills = {
@@ -220,25 +239,25 @@ Config.NestEvent = {
         -- Messages de stats
         stats = {
             title = {
-                fr = "Statistiques de l'événement",
-                en = "Event Statistics"
+                fr = "Statistiques",
+                en = "Statistics"
             },
             total = {
-                fr = "Total des événements: %d\nKills totaux: %d\nArgent distribué: $%d",
+                fr = "Total événements: %d\nKills totaux: %d\nArgent donné: %d$",
                 en = "Total events: %d\nTotal kills: %d\nMoney given: $%d"
             },
             records = {
-                fr = "Record de kills: %d\nMeilleur bonus temps: $%d",
+                fr = "Record de kills: %d\nMeilleur bonus temps: %d$",
                 en = "Kill record: %d\nBest time bonus: $%d"
             }
         }
     }
 }
 
--- Fonction helper pour obtenir le texte traduit
-function Config.NestEvent.GetText(path, ...)
+function Config.NestEvent.GetText(path, text_params)
     local lang = Config.NestEvent.language
     local keys = {}
+    
     for key in string.gmatch(path, "([^.]+)") do
         table.insert(keys, key)
     end
@@ -255,7 +274,11 @@ function Config.NestEvent.GetText(path, ...)
     
     if type(current) == "table" then
         if current[lang] then
-            return string.format(current[lang], ...)
+            if text_params then
+                return string.format(current[lang], text_params)
+            else
+                return current[lang]
+            end
         else
             print("^1[NEST-EVENT] Missing translation for " .. lang .. ": " .. path .. "^7")
             return "MISSING_TRANSLATION: " .. path
