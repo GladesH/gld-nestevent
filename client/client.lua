@@ -167,27 +167,56 @@ local function SpawnRewardBox(coords)
     table.insert(particleEffects, effect)
 
     -- Configuration de l'interaction
-    exports.ox_target:addLocalEntity(rewardBox, {{
-        name = 'nest_reward_box',
-        label = Config.NestEvent.GetText('messages.reward.claimReward'),
-        icon = 'fas fa-box',
-        distance = 3.0,
-        onSelect = function()
-            if not hasParticipated then
-                lib.notify({
-                    title = Config.NestEvent.GetText('messages.error'),
-                    description = Config.NestEvent.GetText('messages.reward.noAccess.notParticipated'),
-                    type = 'error'
-                })
-                return
+    if Config.NestEvent.framework.target == 'qb-target' then
+        exports['qb-target']:AddTargetEntity(rewardBox, {
+            options = {
+                {
+                    type = "client",
+                    event = "nest-event:claimReward",
+                    icon = "fas fa-box",
+                    label = Config.NestEvent.GetText('messages.reward.claimReward'),
+                    action = function(entity)
+                        if not hasParticipated then
+                            lib.notify({
+                                title = Config.NestEvent.GetText('messages.error'),
+                                description = Config.NestEvent.GetText('messages.reward.noAccess.notParticipated'),
+                                type = 'error'
+                            })
+                            return
+                        end
+        
+                        TriggerServerEvent('nest-event:claimReward', timeInZone)
+                        DeleteEntity(rewardBox)
+                        rewardBox = nil
+                        CleanupParticleEffects()
+                    end
+                }
+            },
+            distance = Config.NestEvent.framework.chest.options.distance
+        })
+    elseif Config.NestEvent.framework.target == 'ox_target' then
+        exports.ox_target:addLocalEntity(rewardBox, {{
+            name = 'nest_reward_box',
+            label = Config.NestEvent.GetText('messages.reward.claimReward'),
+            icon = 'fas fa-box',
+            distance = 3.0,
+            onSelect = function()
+                if not hasParticipated then
+                    lib.notify({
+                        title = Config.NestEvent.GetText('messages.error'),
+                        description = Config.NestEvent.GetText('messages.reward.noAccess.notParticipated'),
+                        type = 'error'
+                    })
+                    return
+                end
+                
+                TriggerServerEvent('nest-event:claimReward', timeInZone)
+                DeleteEntity(rewardBox)
+                rewardBox = nil
+                CleanupParticleEffects()
             end
-            
-            TriggerServerEvent('nest-event:claimReward', timeInZone)
-            DeleteEntity(rewardBox)
-            rewardBox = nil
-            CleanupParticleEffects()
-        end
-    }})
+        }})
+    end
 
     Debug("Coffre de récompense créé avec succès à " .. json.encode(finalCoords))
 end
