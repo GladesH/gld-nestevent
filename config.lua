@@ -5,8 +5,9 @@ Config.NestEvent = {
 
     framework = {
         target = 'ox_target', -- 'ox_target' ou 'qb-target'
+        
+        -- For qb --
         chest = {
-            -- model = 'prop_mil_crate_01',
             coords = {
                 offsetX = 0.0,
                 offsetY = 0.0,
