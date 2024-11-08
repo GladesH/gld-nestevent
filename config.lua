@@ -21,13 +21,13 @@ Config.NestEvent = {
     
     nestType = 'horde_nest',  
     Debug = true,            -- Mis à true pour le debugging
-    language = 'fr',         -- 'fr' pour Français, 'en' pour Anglais
+    language = 'en',         -- 'fr' pour Français, 'en' pour Anglais
 
     -- Paramètres de timing
     timing = {
         dayChance = 100,          
         nightChance = 100,        
-        checkInterval = 1,      
+        checkInterval = 5,      
         duration = 1,            
         warningTimes = {3, 1}    
     },
@@ -35,7 +35,7 @@ Config.NestEvent = {
     -- Paramètres de zone
     area = {
         radius = 50.0,          
-        minSpawnDistance = 0.0, 
+        minSpawnDistance = 40.0, 
         maxSpawnDistance = 100.0 
     },
 
