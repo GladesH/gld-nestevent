@@ -1,5 +1,5 @@
 local QBCore = exports['qb-core']:GetCoreObject()
-
+local Spawn = exports[GetCurrentResourceName()]:GetSpawn()
 -- Vérification que Config existe
 if not Config then
     Config = {}
@@ -80,7 +80,6 @@ local function SaveStats()
     end
 end
 
--- Calcul des récompenses
 -- Calcul des récompenses
 local function CalculateRewards(source, kills, timeInZone)
     local baseReward = Config.NestEvent.rewards.money.base
@@ -213,22 +212,6 @@ local function GetRandomPlayer()
     return #validPlayers > 0 and validPlayers[math.random(#validPlayers)] or nil
 end
 
--- Vérification de l'emplacement
-local function IsValidSpawnLocation(coords)
-    local players = QBCore.Functions.GetQBPlayers()
-    for _, player in pairs(players) do
-        local ped = GetPlayerPed(player.PlayerData.source)
-        if ped then
-            local playerCoords = GetEntityCoords(ped)
-            local distance = #(vector3(coords.x, coords.y, 0) - vector3(playerCoords.x, playerCoords.y, 0))
-            if distance < Config.NestEvent.area.minSpawnDistance then
-                Debug("Position rejetée: trop proche d'un joueur", "warning")
-                return false, 0
-            end
-        end
-    end
-    return true, coords.z + 0.5
-end
 -- Démarrer l'événement
 local function StartNestEvent(targetPlayer)
     if activeEvent or not systemEnabled then 
@@ -242,40 +225,39 @@ local function StartNestEvent(targetPlayer)
         return false
     end
 
-    local playerCoords = GetEntityCoords(GetPlayerPed(selectedPlayer.PlayerData.source))
-    Debug("Coordonnées du joueur: " .. json.encode(playerCoords), "info")
-
-    local spawnCoords = nil
-    local attempts = 0
-    local maxAttempts = Config.NestEvent.spawnPreferences and Config.NestEvent.spawnPreferences.maxSpawnAttempts or 20
-
-    while attempts < maxAttempts and not spawnCoords do
-        local angle = math.random() * 2 * math.pi
-        local distance = math.random(
-            Config.NestEvent.area.minSpawnDistance,
-            Config.NestEvent.area.maxSpawnDistance
-        )
-
-        local testCoords = vector3(
-            playerCoords.x + math.cos(angle) * distance,
-            playerCoords.y + math.sin(angle) * distance,
-            playerCoords.z
-        )
-
-        local valid, groundZ = IsValidSpawnLocation(testCoords)
-        if valid then
-            spawnCoords = vector3(testCoords.x, testCoords.y, groundZ)
-            Debug("Point de spawn valide trouvé: " .. json.encode(spawnCoords), "success")
-        end
-        
-        attempts = attempts + 1
-        Debug("Tentative " .. attempts .. " sur " .. maxAttempts)
-    end
-
-    if not spawnCoords then 
-        Debug("Impossible de trouver un point de spawn valide", "error")
+    -- S'assurer que nous avons des coordonnées valides
+    local ped = GetPlayerPed(selectedPlayer.PlayerData.source)
+    if not ped then
+        Debug("Impossible de trouver le ped du joueur", "error")
         return false
     end
+
+    local x, y, z = table.unpack(GetEntityCoords(ped))
+    local playerCoords = vector3(x, y, z)
+    
+    if not playerCoords then
+        Debug("Coordonnées du joueur invalides", "error")
+        return false
+    
+    end
+    Debug("Coordonnées du joueur: " .. playerCoords.x .. ", " .. playerCoords.y .. ", " .. playerCoords.z)
+
+    -- Utiliser le système de spawn prédéfini
+    local spawnCoords = Spawn.GetNearestNestSpawn(playerCoords)
+    
+    if not spawnCoords then
+        Debug("Aucun point de spawn valide trouvé dans la zone configurée", "error")
+        return false
+    end
+
+    -- Vérifier que le spawn est dans les limites de distance configurées
+    local distanceToPlayer = #(vector3(playerCoords.x, playerCoords.y, playerCoords.z) - spawnCoords)
+    if distanceToPlayer < Config.NestEvent.area.minSpawnDistance or distanceToPlayer > Config.NestEvent.area.maxSpawnDistance then
+        Debug("Point de spawn hors des limites de distance configurées", "error")
+        return false
+    end
+
+    Debug("Point de spawn sélectionné: " .. json.encode(spawnCoords), "success")
 
     -- Réinitialiser les participants
     eventParticipants = {}
@@ -330,7 +312,7 @@ local function StartNestEvent(targetPlayer)
     end)
 
     Debug("Événement démarré: " .. activeEvent.id, "success")
-    SaveStats() -- Sauvegarder les stats après le début de l'événement
+    SaveStats()
     return true
 end
 
