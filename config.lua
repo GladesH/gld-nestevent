@@ -2,24 +2,41 @@ Config = {}
 
 Config.NestEvent = {
     -- Paramètres de base
+
+    framework = {
+        target = 'ox_target', -- 'ox_target' ou 'qb-target'
+        chest = {
+            -- model = 'prop_mil_crate_01',
+            coords = {
+                offsetX = 0.0,
+                offsetY = 0.0,
+                offsetZ = -1.0
+            },
+            options = {
+                distance = 2.0,
+                icon = 'fas fa-gift'
+            }
+        }
+    },
+    
     nestType = 'horde_nest',  
-    Debug = false,            -- Mis à true pour le debugging
-    language = 'en',         -- 'fr' pour Français, 'en' pour Anglais
+    Debug = true,            -- Mis à true pour le debugging
+    language = 'fr',         -- 'fr' pour Français, 'en' pour Anglais
 
     -- Paramètres de timing
     timing = {
-        dayChance = 20,          
-        nightChance = 30,        
-        checkInterval = 15,      
-        duration = 5,            
+        dayChance = 100,          
+        nightChance = 100,        
+        checkInterval = 1,      
+        duration = 1,            
         warningTimes = {3, 1}    
     },
 
     -- Paramètres de zone
     area = {
         radius = 50.0,          
-        minSpawnDistance = 10.0, 
-        maxSpawnDistance = 25.0 
+        minSpawnDistance = 0.0, 
+        maxSpawnDistance = 100.0 
     },
 
     -- Système de récompenses
@@ -287,11 +304,3 @@ function Config.NestEvent.GetText(path, text_params)
     
     return "INVALID_PATH: " .. path
 end
-
--- Configuration des préférences de spawn
-Config.NestEvent.spawnPreferences = {
-    preferRoads = true,
-    maxSpawnAttempts = 20,
-    roadCheckRadius = 3.0,
-    minRoadWidth = 5.0
-}
