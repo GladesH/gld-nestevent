@@ -28,8 +28,8 @@ Config.NestEvent = {
     timing = {
         dayChance = 100,          
         nightChance = 100,        
-        checkInterval = 5,      
-        duration = 1,            
+        checkInterval = 15,      
+        duration = 6,            
         warningTimes = {3, 1}    
     },
 
