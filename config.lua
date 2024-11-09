@@ -1,5 +1,13 @@
 Config = {}
 
+Config.SafeZones = {
+    {coords = vector3(4.4551482200623, -1829.2199707031, 25.019714355469), radius = 25.0},
+    {coords = vector3(117.71314239502, -1953.0933837891, 24.628721237183), radius = 60.0},
+    {coords = vector3(2404.7822265625, 3108.1706542969, 48.120086669922), radius = 100.0},
+    {coords = vector3(189.46621704102, -1654.0627441406, -7.7600207328796), radius = 50.0},
+    -- add
+}
+
 Config.NestEvent = {
     -- Paramètres de base
 
