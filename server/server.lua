@@ -8,6 +8,7 @@ if not Config then
     }
 end
 
+-- THX Mr.Murray for your help !
 local function IsPlayerInSafeZone(playerId)
     local xPlayer = QBCore.Functions.GetPlayer(playerId)
     if not xPlayer then return false end
