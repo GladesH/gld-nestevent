@@ -8,6 +8,25 @@ if not Config then
     }
 end
 
+local function IsPlayerInSafeZone(playerId)
+    local xPlayer = QBCore.Functions.GetPlayer(playerId)
+    if not xPlayer then return false end
+
+    -- Get player coords using server-side method
+    local playerPed = GetPlayerPed(xPlayer.PlayerData.source)
+    local playerCoords = GetEntityCoords(playerPed)
+
+    for _, zone in ipairs(Config.SafeZones) do
+        -- Calculate 2D distance for better performance
+        local distance = #(vector2(playerCoords.x, playerCoords.y) - vector2(zone.coords.x, zone.coords.y))
+        if distance <= zone.radius then
+            return true
+        end
+    end
+
+    return false
+end
+
 -- Message de démarrage
 CreateThread(function()
     Wait(2000)
@@ -202,13 +221,20 @@ end
 local function GetRandomPlayer()
     local players = QBCore.Functions.GetQBPlayers()
     local validPlayers = {}
-    
+
     for _, player in pairs(players) do
-        if not player.PlayerData.metadata.isdead and not player.PlayerData.metadata.inlaststand then
-            table.insert(validPlayers, player)
+        -- Check if player is valid using server-side data
+        if player.PlayerData.source then -- Ensure player is connected
+            local isValid = not player.PlayerData.metadata.isdead 
+                and not player.PlayerData.metadata.inlaststand 
+                and not IsPlayerInSafeZone(player.PlayerData.source)
+
+            if isValid then
+                table.insert(validPlayers, player)
+            end
         end
     end
-    
+
     return #validPlayers > 0 and validPlayers[math.random(#validPlayers)] or nil
 end
 
