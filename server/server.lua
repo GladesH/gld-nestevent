@@ -13,12 +13,12 @@ local function IsPlayerInSafeZone(playerId)
     local xPlayer = QBCore.Functions.GetPlayer(playerId)
     if not xPlayer then return false end
 
-    -- Get player coords using server-side method
+   
     local playerPed = GetPlayerPed(xPlayer.PlayerData.source)
     local playerCoords = GetEntityCoords(playerPed)
 
     for _, zone in ipairs(Config.SafeZones) do
-        -- Calculate 2D distance for better performance
+         
         local distance = #(vector2(playerCoords.x, playerCoords.y) - vector2(zone.coords.x, zone.coords.y))
         if distance <= zone.radius then
             return true
